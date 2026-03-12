@@ -63,9 +63,15 @@ func findNotificationCenter() -> AXUIElement? {
     return nil
 }
 
+// Result type to distinguish between "allowed" and "expanded a stack"
+enum ScanResult {
+    case allowed(String)
+    case expandedStack
+}
+
 // Click ONE notification and return immediately so Notification Center can re-render.
-// The main loop will pick up the next one on the following poll cycle.
-func scanAndAllowOne(_ element: AXUIElement, depth: Int = 0) -> String? {
+// If notifications are stacked, expand the stack first, then allow on the next cycle.
+func scanAndAllowOne(_ element: AXUIElement, depth: Int = 0) -> ScanResult? {
     if depth > 10 { return nil }
 
     let subrole = getStringAttr(element, kAXSubroleAttribute as String) ?? ""
@@ -76,13 +82,28 @@ func scanAndAllowOne(_ element: AXUIElement, depth: Int = 0) -> String? {
         AXUIElementCopyActionNames(element, &actions)
 
         if let actionList = actions as? [String] {
+            // First, try to find and click "Allow once"
             for action in actionList {
                 if action.contains(allowAction) {
                     let err = AXUIElementPerformAction(element, action as CFString)
                     if err == .success {
                         let parts = desc.components(separatedBy: ", ")
                         let shortDesc = parts.count > 2 ? parts[2] : desc
-                        return shortDesc
+                        return .allowed(shortDesc)
+                    }
+                }
+            }
+
+            // No "Allow once" found — this is likely a stacked notification group.
+            // Try "Show Details" first (expands the stack), then fall back to "AXPress".
+            for expandAction in ["Show Details", "AXPress"] {
+                for action in actionList {
+                    if action.contains(expandAction) {
+                        let err = AXUIElementPerformAction(element, action as CFString)
+                        if err == .success {
+                            if verbose { print("[\(timestamp())] Expanding stacked notifications via \(expandAction)") }
+                            return .expandedStack
+                        }
                     }
                 }
             }
@@ -102,7 +123,7 @@ func scanAndAllowOne(_ element: AXUIElement, depth: Int = 0) -> String? {
     return nil
 }
 
-func checkNotifications() -> String? {
+func checkNotifications() -> ScanResult? {
     guard let nc = findNotificationCenter() else { return nil }
 
     var windows: CFTypeRef?
@@ -140,7 +161,12 @@ if CommandLine.arguments.contains("--test") {
     print("")
     print("Checking for Claude notifications...")
     if let result = checkNotifications() {
-        print("Found and clicked: \(result)")
+        switch result {
+        case .allowed(let desc):
+            print("Found and clicked: \(desc)")
+        case .expandedStack:
+            print("Found stacked notifications — expanded them.")
+        }
     } else {
         print("No pending Claude permission notifications.")
     }
@@ -179,8 +205,14 @@ setbuf(stdout, nil)
 
 while true {
     if let result = checkNotifications() {
-        print("[\(timestamp())] Allowed: \(result)")
-        Thread.sleep(forTimeInterval: cooldown)
+        switch result {
+        case .allowed(let desc):
+            print("[\(timestamp())] Allowed: \(desc)")
+            Thread.sleep(forTimeInterval: cooldown)
+        case .expandedStack:
+            // Short pause to let Notification Center re-render expanded stack
+            Thread.sleep(forTimeInterval: 0.3)
+        }
     } else {
         if verbose { print("[\(timestamp())] No notifications") }
         Thread.sleep(forTimeInterval: pollInterval)
