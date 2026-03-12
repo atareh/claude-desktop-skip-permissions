@@ -1,4 +1,4 @@
-# ClaudeDesktopSkipPermissions
+# claude-desktop-skip-permissions
 
 Auto-accepts Claude Desktop permission notifications so you can walk away from agentic tasks.
 
@@ -24,8 +24,8 @@ A small native macOS app watches Notification Center for Claude permission alert
 ### Option A: Run in a terminal (simple)
 
 ```bash
-git clone https://github.com/atareh/ClaudeDesktopSkipPermissions.git
-cd ClaudeDesktopSkipPermissions
+git clone https://github.com/atareh/claude-desktop-skip-permissions.git
+cd claude-desktop-skip-permissions
 
 # Build
 mkdir -p ClaudeAutoAllow.app/Contents/MacOS
@@ -46,8 +46,8 @@ You'll need to grant Accessibility permissions (one-time):
 ### Option B: Install as a background service (set and forget)
 
 ```bash
-git clone https://github.com/atareh/ClaudeDesktopSkipPermissions.git
-cd ClaudeDesktopSkipPermissions
+git clone https://github.com/atareh/claude-desktop-skip-permissions.git
+cd claude-desktop-skip-permissions
 ./install.sh
 ```
 
@@ -91,9 +91,9 @@ tail -f /tmp/claude-auto-allow.log
 ## How it's built
 
 - Native Swift binary using the macOS Accessibility API
-- Watches Notification Center for `AXNotificationCenterAlert` elements with "Claude" in the description
-- Triggers the "Allow once" custom action on matching notifications
-- Handles multiple notifications in a single pass
+- Watches Notification Center for Claude permission alerts (both individual and stacked notifications)
+- Triggers the "Allow once" action on matching notifications
+- Handles stacked notification groups automatically
 - ~100 lines of logic
 
 ## License
