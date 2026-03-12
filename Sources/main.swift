@@ -77,7 +77,7 @@ func scanAndAllowOne(_ element: AXUIElement, depth: Int = 0) -> ScanResult? {
     let subrole = getStringAttr(element, kAXSubroleAttribute as String) ?? ""
     let desc = getStringAttr(element, kAXDescriptionAttribute as String) ?? ""
 
-    if subrole == "AXNotificationCenterAlert" && desc.contains("Claude") {
+    if (subrole == "AXNotificationCenterAlert" || subrole == "AXNotificationCenterAlertStack") && desc.contains("Claude") {
         var actions: CFArray?
         AXUIElementCopyActionNames(element, &actions)
 
