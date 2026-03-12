@@ -1,4 +1,4 @@
-# claude-auto-allow
+# ClaudeDesktopSkipPermissions
 
 Auto-accepts Claude Desktop permission notifications so you can walk away from agentic tasks.
 
@@ -24,25 +24,30 @@ A small native macOS app watches Notification Center for Claude permission alert
 ### Option A: Run in a terminal (simple)
 
 ```bash
-git clone https://github.com/atareh/claude-auto-allow.git
-cd claude-auto-allow
+git clone https://github.com/atareh/ClaudeDesktopSkipPermissions.git
+cd ClaudeDesktopSkipPermissions
 
 # Build
-swiftc -O -o claude-auto-allow Sources/main.swift -framework Cocoa
+mkdir -p ClaudeAutoAllow.app/Contents/MacOS
+swiftc -O -o ClaudeAutoAllow.app/Contents/MacOS/claude-auto-allow Sources/main.swift -framework Cocoa
+codesign --force --sign - ClaudeAutoAllow.app
 
 # Run
-./claude-auto-allow
+ClaudeAutoAllow.app/Contents/MacOS/claude-auto-allow
 ```
 
 Runs in the foreground. Ctrl+C to stop.
 
-> You'll need to add the compiled binary to **System Settings > Privacy & Security > Accessibility**.
+You'll need to grant Accessibility permissions (one-time):
+1. Open **System Settings > Privacy & Security > Accessibility**
+2. Click **+** and add the `ClaudeAutoAllow.app` from the repo folder
+3. Toggle it ON
 
 ### Option B: Install as a background service (set and forget)
 
 ```bash
-git clone https://github.com/atareh/claude-auto-allow.git
-cd claude-auto-allow
+git clone https://github.com/atareh/ClaudeDesktopSkipPermissions.git
+cd ClaudeDesktopSkipPermissions
 ./install.sh
 ```
 
@@ -66,9 +71,9 @@ To remove:
 ## Usage
 
 ```bash
-./claude-auto-allow           # run in foreground
-./claude-auto-allow --verbose # log every poll cycle
-./claude-auto-allow --test    # check permissions and exit
+ClaudeAutoAllow.app/Contents/MacOS/claude-auto-allow           # run in foreground
+ClaudeAutoAllow.app/Contents/MacOS/claude-auto-allow --verbose  # log every poll cycle
+ClaudeAutoAllow.app/Contents/MacOS/claude-auto-allow --test     # check permissions and exit
 ```
 
 Check logs (when running as a service):
@@ -85,10 +90,10 @@ tail -f /tmp/claude-auto-allow.log
 
 ## How it's built
 
-- Native Swift binary — uses the macOS Accessibility API directly
-- Watches Notification Center, not Claude's windows — no clipboard interference
-- Looks for `AXNotificationCenterAlert` elements with "Claude" in the description
+- Native Swift binary using the macOS Accessibility API
+- Watches Notification Center for `AXNotificationCenterAlert` elements with "Claude" in the description
 - Triggers the "Allow once" custom action on matching notifications
+- Handles multiple notifications in a single pass
 - ~100 lines of logic
 
 ## License
