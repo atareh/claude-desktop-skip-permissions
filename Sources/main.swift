@@ -9,7 +9,7 @@ let pollInterval: TimeInterval = {
     return 1.0
 }()
 
-let cooldown: TimeInterval = 0.5
+let cooldown: TimeInterval = 0.8
 let verbose = CommandLine.arguments.contains("--verbose")
 
 // The action name as it appears in Notification Center's AX tree
@@ -63,13 +63,14 @@ func findNotificationCenter() -> AXUIElement? {
     return nil
 }
 
-func scanAndAllow(_ element: AXUIElement, results: inout [String], depth: Int = 0) {
-    if depth > 10 { return }
+// Click ONE notification and return immediately so Notification Center can re-render.
+// The main loop will pick up the next one on the following poll cycle.
+func scanAndAllowOne(_ element: AXUIElement, depth: Int = 0) -> String? {
+    if depth > 10 { return nil }
 
     let subrole = getStringAttr(element, kAXSubroleAttribute as String) ?? ""
     let desc = getStringAttr(element, kAXDescriptionAttribute as String) ?? ""
 
-    // Look for Claude notification alerts
     if subrole == "AXNotificationCenterAlert" && desc.contains("Claude") {
         var actions: CFArray?
         AXUIElementCopyActionNames(element, &actions)
@@ -81,37 +82,41 @@ func scanAndAllow(_ element: AXUIElement, results: inout [String], depth: Int = 
                     if err == .success {
                         let parts = desc.components(separatedBy: ", ")
                         let shortDesc = parts.count > 2 ? parts[2] : desc
-                        results.append(shortDesc)
+                        return shortDesc
                     }
                 }
             }
         }
     }
 
-    // Recurse into children
     var children: CFTypeRef?
     AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &children)
     if let children = children as? [AXUIElement] {
         for child in children {
-            scanAndAllow(child, results: &results, depth: depth + 1)
+            if let result = scanAndAllowOne(child, depth: depth + 1) {
+                return result
+            }
         }
     }
+
+    return nil
 }
 
-func checkNotifications() -> [String] {
-    guard let nc = findNotificationCenter() else { return [] }
+func checkNotifications() -> String? {
+    guard let nc = findNotificationCenter() else { return nil }
 
     var windows: CFTypeRef?
     AXUIElementCopyAttributeValue(nc, kAXWindowsAttribute as CFString, &windows)
 
-    guard let windowList = windows as? [AXUIElement] else { return [] }
+    guard let windowList = windows as? [AXUIElement] else { return nil }
 
-    var results: [String] = []
     for window in windowList {
-        scanAndAllow(window, results: &results)
+        if let result = scanAndAllowOne(window) {
+            return result
+        }
     }
 
-    return results
+    return nil
 }
 
 // MARK: - Commands
@@ -134,11 +139,10 @@ if CommandLine.arguments.contains("--test") {
     }
     print("")
     print("Checking for Claude notifications...")
-    let results = checkNotifications()
-    if results.isEmpty {
-        print("No pending Claude permission notifications.")
+    if let result = checkNotifications() {
+        print("Found and clicked: \(result)")
     } else {
-        for r in results { print("Found and clicked: \(r)") }
+        print("No pending Claude permission notifications.")
     }
     exit(0)
 }
@@ -174,11 +178,8 @@ print("")
 setbuf(stdout, nil)
 
 while true {
-    let results = checkNotifications()
-    if !results.isEmpty {
-        for r in results {
-            print("[\(timestamp())] Allowed: \(r)")
-        }
+    if let result = checkNotifications() {
+        print("[\(timestamp())] Allowed: \(result)")
         Thread.sleep(forTimeInterval: cooldown)
     } else {
         if verbose { print("[\(timestamp())] No notifications") }
