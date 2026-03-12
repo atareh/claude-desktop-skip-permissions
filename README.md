@@ -10,7 +10,7 @@ Claude Desktop asks for permission before running tools (bash commands, file edi
 
 ## How it works
 
-A small native macOS app watches Notification Center for Claude permission alerts. When one appears, it triggers the "Allow once" action. Polls every 1 second, uses the macOS Accessibility API directly (no AppleScript, no System Events), and doesn't interfere with clipboard or input.
+A small native macOS app watches Notification Center for Claude permission alerts. When one appears, it triggers the "Allow once" action. Polls every 1 second using the macOS Accessibility API.
 
 ## Requirements
 
